@@ -51,7 +51,7 @@ else:
 
 # Sidebar filters
 course_or_dept = st.sidebar.text_input("Department or Course ID(s) (e.g., CMSC or CMSC216)", "CMSC")
-gened = st.sidebar.text_input("GenEd (e.g., FSAR, DSHS)", "")
+
 professor = st.sidebar.text_input("Professor name (optional)", "")
 
 filter_by_semester = st.sidebar.checkbox("Filter by semester (slower)", value=False)
