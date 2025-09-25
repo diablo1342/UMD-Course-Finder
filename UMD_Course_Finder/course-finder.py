@@ -8,14 +8,14 @@ BASE_URL = "https://api.umd.io/v1"
 st.set_page_config(page_title="UMD Course Finder", layout="wide")
 st.title("UMD Course Finder")
 
-# -------------------- Caching --------------------
+
 @st.cache_data(ttl=3600)  # cache for 1 hour
 def fetch_json(url: str):
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.json()
 
-# -------------------- Helpers --------------------
+
 def flatten_geneds(geneds):
     flat = []
     for g in geneds:
@@ -55,7 +55,7 @@ def fetch_courses(url: str):
         st.error(f"❌ Failed to fetch data from UMD API: {e}")
         return []
 
-# -------------------- Sidebar --------------------
+
 dept_or_course = st.sidebar.text_input(
     "Department or Course ID(s) (e.g., CMSC or CMSC216 or CMSC216,MATH140)",
     ""
@@ -75,11 +75,11 @@ else:
 open_only = st.sidebar.checkbox("Only show courses with open seats")
 debug = st.sidebar.checkbox("🔍 Show raw API responses")
 
-# -------------------- Search --------------------
+
 if st.button("Search Courses"):
     results = []
 
-    # CASE 1: Professor search
+   
     if professor.strip():
         course_ids = set()
         try:
@@ -102,7 +102,7 @@ if st.button("Search Courses"):
         else:
             courses = []
 
-    # CASE 2: Dept or Course search
+    
     elif dept_or_course.strip():
         user_input = dept_or_course.strip().upper()
         is_specific = ("," in user_input) or (len(user_input) > 4 and user_input[:4].isalpha())
@@ -124,7 +124,7 @@ if st.button("Search Courses"):
     else:
         courses = []
 
-    # -------------------- Build table --------------------
+    
     for c in courses:
         section_url = f"{BASE_URL}/courses/{c['course_id']}/sections"
         seats_open = 0
@@ -163,3 +163,4 @@ if st.button("Search Courses"):
         st.dataframe(df, width="stretch")
     else:
         st.warning("No courses found matching your filters.")
+
