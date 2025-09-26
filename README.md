@@ -15,7 +15,7 @@ Students can quickly check open seats, view instructor history, and filter resul
   Enter a professor’s name to see courses they have taught or are teaching.  
 
 -  **Semester Selection**  
-  Dropdown menu with human-readable terms (e.g., *Fall 2025*, *Spring 2024*).  
+  Dropdown menu with different semesters (e.g., *Fall 2025*, *Spring 2024*).  
 
 -  **Open Seat Filter**  
   Option to only show courses that still have available seats.  
