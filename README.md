@@ -7,7 +7,7 @@ Students can quickly check open seats, view instructor history, and filter resul
 
 ---
 
-## ✨ Features
+## Features
 -  **Search by Department or Course ID**  
   Example: `CMSC` → all Computer Science courses, `CMSC216` → specific class.  
 
@@ -26,6 +26,9 @@ Students can quickly check open seats, view instructor history, and filter resul
 ---
 
 ##  Usage
+
+https://umd-course-finder-fk6wcdzee77wxrwwhwilut.streamlit.app/
+
 
 
 
