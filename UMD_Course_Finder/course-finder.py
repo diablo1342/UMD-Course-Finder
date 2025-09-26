@@ -2,6 +2,7 @@ import requests
 import streamlit as st
 import pandas as pd
 import json
+import time
 
 BASE_URL = "https://api.umd.io/v1"
 
@@ -72,48 +73,34 @@ def fetch_courses(url):
 if st.button("Search Courses"):
     results = []
 
-    # --- CASE 1: Professor search ---
-    if professor:
-        prof_url = f"{BASE_URL}/professors?name={professor}"
-        try:
-            prof_resp = requests.get(prof_url)
-            prof_resp.raise_for_status()
-            profs_data = prof_resp.json()
-        except Exception as e:
-            st.error(f"❌ Failed to fetch professor data: {e}")
-            profs_data = []
+    # Add spinner + progress bar
+    with st.spinner("Fetching courses... please wait ⏳"):
+        progress = st.progress(0)
 
-        course_ids = []
-        for p in profs_data:
-            taught = p.get("taught", [])
-            if isinstance(taught, list):
-                for cid in taught:
-                    if isinstance(cid, str):
-                        course_ids.append(cid)
-
-        # --- Option B: Fallback ---
-        if not course_ids:
-            user_input = course_or_dept.strip().upper()
-
-            if len(user_input) > 4:  # ✅ Single course like CMSC216
-                course_id = user_input
-                prof_url = f"{BASE_URL}/professors?course_id={course_id}&semester={semester}"
+        # --- CASE 1: Professor search ---
+        if professor:
+            prof_url = f"{BASE_URL}/professors?name={professor}"
+            try:
                 prof_resp = requests.get(prof_url)
-                if prof_resp.status_code == 200:
-                    profs_data = prof_resp.json()
-                    if isinstance(profs_data, list):
-                        for p in profs_data:
-                            name = p.get("name", "").lower()
-                            if professor.lower() in name:
-                                course_ids.append(course_id)
+                prof_resp.raise_for_status()
+                profs_data = prof_resp.json()
+            except Exception as e:
+                st.error(f"❌ Failed to fetch professor data: {e}")
+                profs_data = []
 
-            else:  # ✅ Department search
-                dept = user_input or "CMSC"
-                url = f"{BASE_URL}/courses?dept_id={dept}&per_page=100&semester={semester}"
-                all_courses = fetch_courses(url)
+            course_ids = []
+            for p in profs_data:
+                taught = p.get("taught", [])
+                if isinstance(taught, list):
+                    for cid in taught:
+                        if isinstance(cid, str):
+                            course_ids.append(cid)
 
-                for c in all_courses:
-                    course_id = c["course_id"]
+            if not course_ids:
+                user_input = course_or_dept.strip().upper()
+
+                if len(user_input) > 4:  # Single course like CMSC216
+                    course_id = user_input
                     prof_url = f"{BASE_URL}/professors?course_id={course_id}&semester={semester}"
                     prof_resp = requests.get(prof_url)
                     if prof_resp.status_code == 200:
@@ -124,71 +111,91 @@ if st.button("Search Courses"):
                                 if professor.lower() in name:
                                     course_ids.append(course_id)
 
-        if course_ids:
-            course_ids = list(set(course_ids))
-            ids_str = ",".join(course_ids)
-            url = f"{BASE_URL}/courses/{ids_str}?semester={semester}"
-            courses = fetch_courses(url)
+                else:  # Department search
+                    dept = user_input or "CMSC"
+                    url = f"{BASE_URL}/courses?dept_id={dept}&per_page=100&semester={semester}"
+                    all_courses = fetch_courses(url)
+
+                    for c in all_courses:
+                        course_id = c["course_id"]
+                        prof_url = f"{BASE_URL}/professors?course_id={course_id}&semester={semester}"
+                        prof_resp = requests.get(prof_url)
+                        if prof_resp.status_code == 200:
+                            profs_data = prof_resp.json()
+                            if isinstance(profs_data, list):
+                                for p in profs_data:
+                                    name = p.get("name", "").lower()
+                                    if professor.lower() in name:
+                                        course_ids.append(course_id)
+
+            if course_ids:
+                course_ids = list(set(course_ids))
+                ids_str = ",".join(course_ids)
+                url = f"{BASE_URL}/courses/{ids_str}?semester={semester}"
+                courses = fetch_courses(url)
+            else:
+                courses = []
+
+        # --- CASE 2: Dept or Course search ---
         else:
-            courses = []
+            user_input = course_or_dept.strip().upper()
+            if len(user_input) > 4:  # single course
+                url = f"{BASE_URL}/courses/{user_input}?semester={semester}"
+            else:  # department
+                url = f"{BASE_URL}/courses?dept_id={user_input}&per_page=100&semester={semester}"
+            courses = fetch_courses(url)
 
-    # --- CASE 2: Dept or Course search ---
-    else:
-        user_input = course_or_dept.strip().upper()
-        if len(user_input) > 4:  # single course
-            url = f"{BASE_URL}/courses/{user_input}?semester={semester}"
-        else:  # department
-            url = f"{BASE_URL}/courses?dept_id={user_input}&per_page=100&semester={semester}"
-        courses = fetch_courses(url)
+            if len(user_input) <= 4:  # dept search → limit to 10
+                courses = courses[:10]
 
-        if len(user_input) <= 4:  # dept search → limit to 10
-            courses = courses[:10]
+        progress.progress(50)  # update halfway
 
-    # --- Process courses ---
-    for c in courses:
-        seats_open = 0
-        # ✅ Section endpoint respects semester
-        section_url = f"{BASE_URL}/courses/{c['course_id']}/sections?semester={semester}"
+        # --- Process courses ---
+        for idx, c in enumerate(courses):
+            seats_open = 0
+            section_url = f"{BASE_URL}/courses/{c['course_id']}/sections?semester={semester}"
 
-        try:
-            section_resp = requests.get(section_url)
-            section_data = section_resp.json() if section_resp.status_code == 200 else []
-        except (json.JSONDecodeError, ValueError):
-            section_data = []
+            try:
+                section_resp = requests.get(section_url)
+                section_data = section_resp.json() if section_resp.status_code == 200 else []
+            except (json.JSONDecodeError, ValueError):
+                section_data = []
 
-        if isinstance(section_data, list):
-            for s in section_data:
-                if isinstance(s, dict):
-                    seats = s.get("seats")
-                    if isinstance(seats, dict):
-                        seats_open += seats.get("open", 0)
+            if isinstance(section_data, list):
+                for s in section_data:
+                    if isinstance(s, dict):
+                        seats = s.get("seats")
+                        if isinstance(seats, dict):
+                            seats_open += seats.get("open", 0)
 
-        # ✅ Professors endpoint respects semester
-        profs = []
-        try:
-            prof_url = f"{BASE_URL}/professors?course_id={c['course_id']}&semester={semester}"
-            prof_resp = requests.get(prof_url)
-            if prof_resp.status_code == 200:
-                profs_data = prof_resp.json()
-                if isinstance(profs_data, list):
-                    profs = [p.get("name", "") for p in profs_data if isinstance(p, dict)]
-        except Exception:
-            pass
+            profs = []
+            try:
+                prof_url = f"{BASE_URL}/professors?course_id={c['course_id']}&semester={semester}"
+                prof_resp = requests.get(prof_url)
+                if prof_resp.status_code == 200:
+                    profs_data = prof_resp.json()
+                    if isinstance(profs_data, list):
+                        profs = [p.get("name", "") for p in profs_data if isinstance(p, dict)]
+            except Exception:
+                pass
 
-        if open_only and seats_open == 0:
-            continue
+            if open_only and seats_open == 0:
+                continue
 
-        results.append({
-            "Course ID": c["course_id"],
-            "Name": c["name"],
-            "Credits": c["credits"],
-            "Professors": ", ".join(sorted(profs)) if profs else "N/A",
-            "Seats Open": seats_open
-        })
+            results.append({
+                "Course ID": c["course_id"],
+                "Name": c["name"],
+                "Credits": c["credits"],
+                "Professors": ", ".join(sorted(profs)) if profs else "N/A",
+                "Seats Open": seats_open
+            })
 
-        if debug:
-            st.write("Course:", c["course_id"])
-            st.json(c)
+            if debug:
+                st.write("Course:", c["course_id"])
+                st.json(c)
+
+            # Update progress incrementally
+            progress.progress(int(50 + (idx + 1) / len(courses) * 50))
 
     # --- Show results ---
     if results:
