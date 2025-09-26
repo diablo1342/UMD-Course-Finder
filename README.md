@@ -12,7 +12,7 @@ Students can quickly check open seats, view instructor history, and filter resul
   Example: `CMSC` → all Computer Science courses, `CMSC216` → specific class.  
 
 -  **Search by Professor**  
-  Enter a professor’s name to see courses they have taught or are teaching.  
+  Enter a professor’s name and the department they teach in to see what classes they are teaching.  
 
 -  **Semester Selection**  
   Dropdown menu with different semesters (e.g., *Fall 2025*, *Spring 2024*).  
